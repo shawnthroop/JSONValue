@@ -1,0 +1,14 @@
+.DS_Store
+
+## Xcode
+/.build
+/*.xcodeproj
+xcuserdata/
+
+## Swift PM
+/Packages
+.swiftpm
+Package.resolved
+
+## Project
+Playgrounds
