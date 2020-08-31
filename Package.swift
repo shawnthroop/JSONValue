@@ -7,8 +7,7 @@ let package = Package(
     name: "JSONValue",
     platforms: [
         .iOS(.v13),
-        .macOS(.v10_15),
-        .tvOS(.v9)
+        .macOS(.v10_10),
         .tvOS(.v9),
         .watchOS(.v2)
     ],
