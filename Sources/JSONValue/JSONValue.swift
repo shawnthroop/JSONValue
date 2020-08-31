@@ -11,73 +11,61 @@ public enum JSONValue: Equatable {
     case string(String)
     case object(JSONObject)
     case array(JSONArray)
+    case null
 }
+
 
 public typealias JSONObject = [String: JSONValue]
 public typealias JSONArray = [JSONValue]
 
 
-extension JSONValue {
+extension JSONValue: JSONValueStorage {
     
-    public subscript(key: String) -> JSONValue? {
-        get { objectValue?[key] }
-        set { objectValue?[key] = newValue }
-    }
-    
-    public subscript<T>(key: String) -> T? where T: JSONValueRepresentable {
-        get { self[key].flatMap(T.init(json:)) }
-        set { self[key] = newValue?.jsonValue }
-    }
-    
-    public subscript<T>(key: String, type type: T.Type) -> T? where T: JSONValueRepresentable {
-        self[key]
-    }
-    
-    
-    public var boolValue: Bool? {
-        Bool(json: self)
-    }
-    
-    public var intValue: Int? {
-        Int(json: self)
-    }
-    
-    public var doubleValue: Double? {
-        get { Double(json: self) }
-        set { set(newValue.map(JSONValue.double)) }
-    }
-    
-    public var stringValue: String? {
-        get { String(json: self) }
-        set { set(newValue.map(JSONValue.string)) }
-    }
-    
-    public var objectValue: JSONObject? {
-        get { JSONObject(json: self) }
-        set { set(newValue.map(JSONValue.object)) }
-    }
-    
-    public var arrayValue: JSONArray? {
-        get { JSONArray(json: self) }
-        set { set(newValue.map(JSONValue.array)) }
-    }
-    
-    private mutating func set(_ newValue: Self?) {
-        if let newValue = newValue {
-            self = newValue
-        }
+    public var jsonValue: JSONValue {
+        get { self }
+        set { self = newValue }
     }
 }
 
 
-extension Optional where Wrapped == JSONValue {
+extension JSONObject: JSONValueStorage, JSONValueRepresentable {
     
-    public subscript(key: String) -> JSONValue? {
-        switch self {
-        case .object(let objectValue):
-            return objectValue[key]
+    public init?(json: JSONValue) {
+        switch json {
+        case .object(let value):
+            self = value
         default:
             return nil
+        }
+    }
+    
+    public func asJSON() -> JSONValue { .object(self) }
+}
+
+
+extension JSONArray: JSONValueStorage, JSONValueRepresentable {
+    
+    public init?(json: JSONValue) {
+        switch json {
+        case .array(let value):
+            self = value
+        default:
+            return nil
+        }
+    }
+    
+    public func asJSON() -> JSONValue { .array(self) }
+}
+
+
+extension JSONValueStorage where Self: JSONValueRepresentable {
+    
+    public var jsonValue: JSONValue {
+        get { asJSON() }
+        set {
+            if let newValue = Self(json: newValue) {
+                self = newValue
+            }
         }
     }
 }
@@ -88,7 +76,9 @@ extension JSONValue: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
 
-        if let boolValue = try? container.decode(Bool.self) {
+        if container.decodeNil() {
+            self = .null
+        } else if let boolValue = try? container.decode(Bool.self) {
             self = .bool(boolValue)
         } else if let intValue = try? container.decode(Int.self) {
             self = .int(intValue)
@@ -112,6 +102,8 @@ extension JSONValue: Codable {
         var container = encoder.singleValueContainer()
         
         switch self {
+        case .null:
+            try container.encodeNil()
         case .bool(let boolValue):
             try container.encode(boolValue)
         case .int(let intValue):
@@ -125,6 +117,14 @@ extension JSONValue: Codable {
         case .array(let arrayValue):
             try container.encode(arrayValue)
         }
+    }
+}
+
+
+extension JSONValue {
+    
+    public init<T>(representation: T) where T: JSONValueRepresentable {
+        self = representation.asJSON()
     }
 }
 
@@ -151,12 +151,12 @@ extension JSONValue: ExpressibleByBooleanLiteral, ExpressibleByIntegerLiteral, E
 
 extension JSONValue: ExpressibleByDictionaryLiteral, ExpressibleByArrayLiteral {
     
-    public init(dictionaryLiteral elements: (String, JSONValue)...) {
-        self = .object(elements.reduce(into: [:]) { $0[$1.0] = $1.1 })
+    public init(dictionaryLiteral elements: (String, JSONValueRepresentable)...) {
+        self = .object(elements.reduce(into: [:]) { $0[$1.0] = $1.1.asJSON() })
     }
     
-    public init(arrayLiteral elements: JSONValue...) {
-        self = .array(elements)
+    public init(arrayLiteral elements: JSONValueRepresentable...) {
+        self = .array(elements.map { $0.asJSON() })
     }
 }
 
@@ -177,6 +177,8 @@ extension JSONValue: CustomStringConvertible {
             return objectValue.description
         case .array(let arrayValue):
             return arrayValue.description
+        case .null:
+            return "null"
         }
     }
 }

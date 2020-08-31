@@ -3,20 +3,39 @@
 //  Created by Shawn Throop on 29.08.20.
 //
 
-/// A value interchangeable with `JSONValue`.
+import Foundation
+
+/// A value that can be losslessly converted to and from JSON.
 public protocol JSONValueRepresentable {
     
-    var jsonValue: JSONValue { get }
-    
+    /// Creates an instance of the reciever from the given value.
     init?(json: JSONValue)
+    
+    /// Provides a JSONValue representation of the reciever.
+    func asJSON() -> JSONValue
 }
 
 
 
+extension Optional: JSONValueRepresentable where Wrapped: JSONValueRepresentable {
+
+    public init?(json: JSONValue) {
+        self = json == .null ? .none : Wrapped(json: json)
+    }
+
+    public func asJSON() -> JSONValue {
+        switch self {
+        case .some(let wrapped):
+            return wrapped.asJSON()
+        case .none:
+            return .null
+        }
+    }
+}
+
+
 extension Bool: JSONValueRepresentable {
-    
-    public var jsonValue: JSONValue { .bool(self) }
-    
+
     public init?(json: JSONValue) {
         switch json {
         case .bool(let value):
@@ -25,13 +44,13 @@ extension Bool: JSONValueRepresentable {
             return nil
         }
     }
+
+    public func asJSON() -> JSONValue { .bool(self) }
 }
 
 
 extension Int: JSONValueRepresentable {
-    
-    public var jsonValue: JSONValue { .int(self) }
-    
+
     public init?(json: JSONValue) {
         switch json {
         case .int(let value):
@@ -40,13 +59,13 @@ extension Int: JSONValueRepresentable {
             return nil
         }
     }
+
+    public func asJSON() -> JSONValue { .int(self) }
 }
 
 
 extension Double: JSONValueRepresentable {
-    
-    public var jsonValue: JSONValue { .double(self) }
-    
+        
     public init?(json: JSONValue) {
         switch json {
         case .double(let value):
@@ -55,13 +74,13 @@ extension Double: JSONValueRepresentable {
             return nil
         }
     }
+
+    public func asJSON() -> JSONValue { .double(self) }
 }
 
 
 extension String: JSONValueRepresentable {
-    
-    public var jsonValue: JSONValue { .string(self) }
-    
+
     public init?(json: JSONValue) {
         switch json {
         case .string(let value):
@@ -70,34 +89,6 @@ extension String: JSONValueRepresentable {
             return nil
         }
     }
-}
 
-
-extension JSONObject: JSONValueRepresentable {
-    
-    public var jsonValue: JSONValue { .object(self) }
-    
-    public init?(json: JSONValue) {
-        switch json {
-        case .object(let objectValue):
-            self = objectValue
-        default:
-            return nil
-        }
-    }
-}
-
-
-extension JSONArray: JSONValueRepresentable {
-    
-    public var jsonValue: JSONValue { .array(self) }
-    
-    public init?(json: JSONValue) {
-        switch json {
-        case .array(let arrayValue):
-            self = arrayValue
-        default:
-            return nil
-        }
-    }
+    public func asJSON() -> JSONValue { .string(self) }
 }
